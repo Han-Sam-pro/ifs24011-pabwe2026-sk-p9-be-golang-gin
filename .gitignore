@@ -1,0 +1,19 @@
+# Binary hasil build (diawali "/" agar hanya root yang diabaikan,
+# sehingga folder internal/server/ tetap ikut ter-checkout oleh Jenkins)
+/server
+/server.exe
+/main
+/main.exe
+/app
+/app.exe
+
+# Environment
+.env
+
+# Coverage & tooling
+coverage.out
+coverage.html
+*.test
+*.db
+.idea/
+.vscode/
