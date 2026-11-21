@@ -17,6 +17,7 @@ type Config struct {
 	AdminUsername string
 	AdminPassword string
 
+	DatabaseURL  string
 	DBConnection string
 	DBHost       string
 	DBPort       string
@@ -43,12 +44,13 @@ func Load(files ...string) *Config {
 
 	return &Config{
 		AppEnv:  Get("APP_ENV", "development"),
-		AppPort: Get("APP_PORT", "8081"),
+		AppPort: Get("APP_PORT", Get("PORT", "8081")),
 		AppKey:  Get("APP_KEY", "delcom_blog_default_secret_key"),
 
 		AdminUsername: Get("ADMIN_USERNAME", "admin"),
 		AdminPassword: Get("ADMIN_PASSWORD", "admin"),
 
+		DatabaseURL:  Get("DATABASE_URL", ""),
 		DBConnection: Get("DB_CONNECTION", "pgsql"),
 		DBHost:       Get("DB_HOST", "127.0.0.1"),
 		DBPort:       Get("DB_PORT", "5432"),
@@ -72,8 +74,13 @@ func Get(key, def string) string {
 	return def
 }
 
-// DSN menghasilkan connection string PostgreSQL.
+// DSN menghasilkan connection string PostgreSQL. Jika DATABASE_URL diisi
+// (format Neon: postgresql://user:pass@host/db?sslmode=require), nilai itu
+// dipakai langsung dan variabel DB_* diabaikan.
 func (c *Config) DSN() string {
+	if c.DatabaseURL != "" {
+		return c.DatabaseURL
+	}
 	return fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=Asia/Jakarta",
 		c.DBHost, c.DBPort, c.DBUsername, c.DBPassword, c.DBDatabase, c.DBSSLMode,

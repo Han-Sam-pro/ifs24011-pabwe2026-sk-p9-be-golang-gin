@@ -5,7 +5,7 @@ Clean Architecture & Feature-First, PostgreSQL 17, JWT, Swagger UI, serta
 **AI Blog Generator** yang terintegrasi langsung dengan **Search Engine**.
 
 ## Teknologi
-Go 1.26+ · Gin v1.12 · GORM v1.31 (PostgreSQL / SQLite in-memory untuk test) ·
+Go 1.27.4 · Gin v1.12 · GORM v1.31 (PostgreSQL / SQLite in-memory untuk test) ·
 JWT v5 · bcrypt · godotenv · swaggo · testify
 
 ## Menjalankan
@@ -14,7 +14,7 @@ JWT v5 · bcrypt · godotenv · swaggo · testify
 psql -U postgres -c "CREATE DATABASE pabwe_p9_blog;"
 cp .env.example .env    # sesuaikan DB_* dan OPENAI_* / SEARCH_ENGINE_ENDPOINT
 go mod download
-go run cmd/server/main.go
+go run .                    # atau: go run cmd/server/main.go
 ```
 
 - API: `http://localhost:8081`
@@ -25,7 +25,7 @@ go run cmd/server/main.go
 Build binary:
 
 ```bash
-go build -o server cmd/server/main.go   # Windows: go build -o server.exe cmd/server/main.go
+go build -o server .        # Windows: go build -o server.exe .
 ./server
 ```
 
@@ -33,19 +33,26 @@ go build -o server cmd/server/main.go   # Windows: go build -o server.exe cmd/se
 
 ```bash
 go test -v -cover ./internal/...
+
+# sama persis dengan stage Test di Jenkinsfile (total 100%)
+go test -v -coverprofile=coverage.out -covermode=atomic ./...
+go tool cover -func=coverage.out
 ```
 
 Regenerasi dokumentasi Swagger setelah mengubah anotasi handler:
 
 ```bash
-go run github.com/swaggo/swag/cmd/swag@v1.16.6 init -g cmd/server/main.go -o docs --parseInternal
+go run github.com/swaggo/swag/cmd/swag@v1.16.6 init -g main.go -o docs --parseInternal
 cp docs/swagger.json docs/api.json
 ```
 
 ## Struktur
 
 ```
-cmd/server/main.go        entry point (config -> DB -> migrate -> seed -> router :8081)
+main.go                   entry point root (dipakai Jenkins: go build -o server .)
+cmd/server/main.go        entry point alternatif (go run cmd/server/main.go)
+internal/app              bootstrap: config -> DB -> migrate -> seed -> router :8081
+Jenkinsfile               pipeline CI/CD (test, build, Trivy, package, publish, deploy)
 docs/                     Swagger/OpenAPI (docs.go, swagger.json/yaml, api.json)
 internal/config           loader .env
 internal/database         koneksi PostgreSQL/SQLite, model User & Post, migrasi, seed admin
@@ -91,3 +98,32 @@ internal/server           router Gin, Swagger UI, NoRoute 404
 > Catatan: format persis API `delcom.org/api/v1/search` tidak terdokumentasi di spesifikasi, sehingga
 > parser dibuat toleran terhadap beberapa bentuk respons umum. Sesuaikan `internal/features/ai/search.go`
 > bila format resminya berbeda.
+
+## CI/CD Jenkins
+
+`Jenkinsfile` menjalankan: Checkout → Install Dependencies (`go mod download/verify`) →
+Test (`go test ./...` + coverage, total **100%**) → Build (`CGO_ENABLED=0 go build -o server .`) →
+Trivy (`HIGH,CRITICAL`, exit-code 1; saat ini 0 temuan) → Package (`git archive`, tanpa `.env` dan biner) →
+Publish → Deploy. Variabel `URL_REDEPLOY`, `URL_PROGRESS`, `DEPLOY_TOKEN`, `WEBSITE_ID` diatur di Jenkins.
+
+## Database Neon (PostgreSQL 17, cloud)
+
+Project Neon: **delcom-blog** (`sweet-wave-85984970`), region `aws-ap-southeast-1` (Singapura),
+branch `main`, database `pabwe_p9_blog`. Tabel `users` & `posts` (skema identik dengan GORM AutoMigrate)
+dan akun admin awal (`admin` / `admin`) sudah dibuat.
+
+Cara menghubungkan backend:
+
+1. Buka https://console.neon.tech → project **delcom-blog** → **Connect**, pilih database `pabwe_p9_blog`,
+   salin connection string.
+2. Isi environment variable (di `.env` lokal **atau** di pengaturan platform deploy — `.env` tidak ikut
+   ke `latest-app.zip` hasil Jenkins):
+
+   ```
+   DATABASE_URL=postgresql://neondb_owner:PASSWORD@ep-xxxx.ap-southeast-1.aws.neon.tech/pabwe_p9_blog?sslmode=require
+   APP_KEY=<string acak panjang>
+   ADMIN_PASSWORD=<ganti dari default>
+   ```
+
+   Jika `DATABASE_URL` diisi, variabel `DB_*` diabaikan. Port server memakai `APP_PORT`, lalu `PORT`
+   (umum diset otomatis oleh platform deploy), lalu default `8081`.

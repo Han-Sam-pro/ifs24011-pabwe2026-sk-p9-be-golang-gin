@@ -17,3 +17,10 @@ coverage.html
 *.db
 .idea/
 .vscode/
+
+# Artefak pipeline Jenkins
+/latest-app.zip
+/trivy-results.sarif
+/.trivy-cache/
+*.out
+*.prof

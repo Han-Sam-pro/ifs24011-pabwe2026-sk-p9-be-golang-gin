@@ -54,3 +54,12 @@ func TestGet(t *testing.T) {
 	assert.Equal(t, "value", Get("X_TEST_KEY", "def"))
 	assert.Equal(t, "def", Get("X_TEST_KEY_NOT_SET", "def"))
 }
+
+func TestDatabaseURLAndPort(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgresql://u:p@ep-x.neon.tech/db?sslmode=require")
+	t.Setenv("APP_PORT", "")
+	t.Setenv("PORT", "9000")
+	cfg := Load(filepath.Join(t.TempDir(), "missing.env"))
+	assert.Equal(t, "postgresql://u:p@ep-x.neon.tech/db?sslmode=require", cfg.DSN())
+	assert.Equal(t, ":9000", cfg.Address())
+}
