@@ -30,14 +30,19 @@ func NewRouter(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger(), gin.Recovery(), middleware.CORS())
 
-	authHandler := auth.NewHandler(auth.NewService(auth.NewRepository(db), cfg.AppKey))
+	authHandler := auth.NewHandler(auth.NewService(auth.NewRepository(db), cfg.TokenSecret()))
 	postHandler := post.NewHandler(post.NewService(post.NewRepository(db)))
 	aiHandler := ai.NewHandler(ai.NewService(
 		ai.NewSearchClient(cfg.SearchEngineEndpoint),
 		ai.NewOpenAIClient(cfg.OpenAIEndpoint, cfg.OpenAIKey, cfg.OpenAIModel),
 	))
 
-	// Dokumentasi
+	// Dokumentasi: di balik reverse proxy HTTPS, Swagger UI harus memakai https
+	// agar request "Try it out" tidak diblokir browser (mixed content).
+	docs.SwaggerInfo.Schemes = []string{"http", "https"}
+	if cfg.ForceHTTPS {
+		docs.SwaggerInfo.Schemes = []string{"https"}
+	}
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	r.GET("/api.json", func(c *gin.Context) {
 		c.Data(http.StatusOK, "application/json; charset=utf-8", []byte(docs.SwaggerInfo.ReadDoc()))
@@ -56,7 +61,7 @@ func NewRouter(cfg *config.Config, db *gorm.DB) *gin.Engine {
 
 	// Autentikasi
 	authLimiter := middleware.RateLimiter(60, time.Minute)
-	requireAuth := middleware.Auth(cfg.AppKey)
+	requireAuth := middleware.Auth(cfg.TokenSecret())
 	authGroup := api.Group("/auth")
 	authGroup.POST("/register", authLimiter, authHandler.Register)
 	authGroup.POST("/login", authLimiter, authHandler.Login)

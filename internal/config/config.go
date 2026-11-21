@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -13,6 +14,9 @@ type Config struct {
 	AppEnv  string
 	AppPort string
 	AppKey  string
+
+	JWTSecret  string
+	ForceHTTPS bool
 
 	AdminUsername string
 	AdminPassword string
@@ -47,6 +51,9 @@ func Load(files ...string) *Config {
 		AppPort: Get("APP_PORT", Get("PORT", "8081")),
 		AppKey:  Get("APP_KEY", "delcom_blog_default_secret_key"),
 
+		JWTSecret:  Get("JWT_SECRET", ""),
+		ForceHTTPS: Get("FORCE_HTTPS", "false") == "true",
+
 		AdminUsername: Get("ADMIN_USERNAME", "admin"),
 		AdminPassword: Get("ADMIN_PASSWORD", "admin"),
 
@@ -67,11 +74,30 @@ func Load(files ...string) *Config {
 }
 
 // Get mengembalikan nilai environment variable atau nilai default.
+// Tanda kutip pembungkus ("..." atau '...') dibuang, karena sebagian platform
+// deploy menyuntikkan nilai .env apa adanya, misalnya DB_PASSWORD="rahasia".
 func Get(key, def string) string {
-	if v, ok := os.LookupEnv(key); ok && v != "" {
-		return v
+	v := Unquote(strings.TrimSpace(os.Getenv(key)))
+	if v == "" {
+		return def
 	}
-	return def
+	return v
+}
+
+// Unquote membuang sepasang tanda kutip ganda/tunggal di awal dan akhir nilai.
+func Unquote(v string) string {
+	if len(v) >= 2 && (v[0] == '"' || v[0] == '\'') && v[len(v)-1] == v[0] {
+		return v[1 : len(v)-1]
+	}
+	return v
+}
+
+// TokenSecret adalah kunci penandatangan JWT: JWT_SECRET jika diisi, selain itu APP_KEY.
+func (c *Config) TokenSecret() string {
+	if c.JWTSecret != "" {
+		return c.JWTSecret
+	}
+	return c.AppKey
 }
 
 // DSN menghasilkan connection string PostgreSQL. Jika DATABASE_URL diisi
@@ -82,7 +108,7 @@ func (c *Config) DSN() string {
 		return c.DatabaseURL
 	}
 	return fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=Asia/Jakarta",
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		c.DBHost, c.DBPort, c.DBUsername, c.DBPassword, c.DBDatabase, c.DBSSLMode,
 	)
 }

@@ -63,3 +63,24 @@ func TestDatabaseURLAndPort(t *testing.T) {
 	assert.Equal(t, "postgresql://u:p@ep-x.neon.tech/db?sslmode=require", cfg.DSN())
 	assert.Equal(t, ":9000", cfg.Address())
 }
+
+func TestDeployEnv(t *testing.T) {
+	t.Setenv("DB_PASSWORD", `"d6g-rahasia"`)
+	t.Setenv("DB_USERNAME", "'user'")
+	t.Setenv("JWT_SECRET", "jwt-secret")
+	t.Setenv("FORCE_HTTPS", "true")
+	cfg := Load(filepath.Join(t.TempDir(), "missing.env"))
+	assert.Equal(t, "d6g-rahasia", cfg.DBPassword)
+	assert.Equal(t, "user", cfg.DBUsername)
+	assert.Equal(t, "jwt-secret", cfg.TokenSecret())
+	assert.True(t, cfg.ForceHTTPS)
+	assert.Equal(t, "app-key", (&Config{AppKey: "app-key"}).TokenSecret())
+}
+
+func TestUnquote(t *testing.T) {
+	assert.Equal(t, "a", Unquote(`"a"`))
+	assert.Equal(t, "a", Unquote("'a'"))
+	assert.Equal(t, `"a'`, Unquote(`"a'`))
+	assert.Equal(t, `"`, Unquote(`"`))
+	assert.Equal(t, "plain", Unquote("plain"))
+}

@@ -11,6 +11,7 @@ import (
 
 	"app/internal/config"
 	"app/internal/database"
+	"app/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -170,4 +171,23 @@ func TestProductionMode(t *testing.T) {
 	require.NoError(t, err)
 	NewRouter(&config.Config{AppEnv: "production"}, db)
 	assert.Equal(t, gin.ReleaseMode, gin.Mode())
+}
+
+func TestForceHTTPSAndJWTSecret(t *testing.T) {
+	gin.DefaultWriter = io.Discard
+	db, err := database.ConnectSQLite("file::memory:")
+	require.NoError(t, err)
+	cfg := &config.Config{AppEnv: "testing", AppKey: "app-key", JWTSecret: "jwt-secret", ForceHTTPS: true, AdminUsername: "admin", AdminPassword: "admin"}
+	require.NoError(t, database.Seed(db, cfg))
+	c := client{t: t, r: NewRouter(cfg, db)}
+	defer NewRouter(&config.Config{}, db) // kembalikan skema swagger default
+
+	w := httptest.NewRecorder()
+	c.r.ServeHTTP(w, httptest.NewRequest("GET", "/api.json", nil))
+	assert.Contains(t, w.Body.String(), `"https"`)
+	assert.NotContains(t, w.Body.String(), `"http",`)
+
+	token := c.login("admin", "admin")
+	_, err = middleware.ParseToken("jwt-secret", token)
+	assert.NoError(t, err)
 }

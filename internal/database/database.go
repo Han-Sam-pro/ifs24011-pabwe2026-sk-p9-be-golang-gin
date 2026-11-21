@@ -71,7 +71,9 @@ func Dialector(cfg *config.Config) gorm.Dialector {
 	if cfg.DBConnection == "sqlite" {
 		return sqlite.Open(cfg.DBDatabase)
 	}
-	return postgres.Open(cfg.DSN())
+	// PreferSimpleProtocol: tanpa prepared statement bernama, agar aman di
+	// belakang PgBouncer mode transaction (platform deploy) dan pooler Neon.
+	return postgres.New(postgres.Config{DSN: cfg.DSN(), PreferSimpleProtocol: true})
 }
 
 // Connect membuka koneksi database untuk runtime.

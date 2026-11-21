@@ -127,3 +127,27 @@ Cara menghubungkan backend:
 
    Jika `DATABASE_URL` diisi, variabel `DB_*` diabaikan. Port server memakai `APP_PORT`, lalu `PORT`
    (umum diset otomatis oleh platform deploy), lalu default `8081`.
+
+## Deploy di platform Delcom (PgBouncer)
+
+Konfigurasi dari platform (mis. `DB_HOST=delcom-deployment-pgbouncer`, `DB_PORT=6432`, `PORT=6638`,
+`JWT_SECRET`, `FORCE_HTTPS=true`) didukung langsung:
+
+- Koneksi memakai *simple protocol* (tanpa prepared statement bernama) sehingga aman di balik
+  PgBouncer mode transaction; tanpa ini redeploy kedua gagal dengan error `prepared statement "stmtcache_..."`.
+- Nilai bertanda kutip seperti `DB_PASSWORD="..."` otomatis dibersihkan.
+- JWT ditandatangani dengan `JWT_SECRET` (fallback `APP_KEY`).
+- `FORCE_HTTPS=true` membuat Swagger UI memakai skema `https`.
+- Server listen di `:PORT` (semua interface, termasuk `127.0.0.1`).
+
+Tambahkan juga di konfigurasi deploy:
+
+```
+ADMIN_PASSWORD=<password kuat>          # jika tidak, admin awal = admin/admin
+OPENAI_ENDPOINT=...                     # untuk AI Generator
+OPENAI_KEY=...
+OPENAI_MODEL=...
+SEARCH_ENGINE_ENDPOINT=...
+```
+
+Jika `DATABASE_URL` tidak diisi, database yang dipakai adalah database platform (`DB_*`), bukan Neon.
