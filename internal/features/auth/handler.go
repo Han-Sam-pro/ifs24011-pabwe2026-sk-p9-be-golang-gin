@@ -21,7 +21,7 @@ func NewHandler(svc Service) *Handler {
 func (h *Handler) fail(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, ErrConflict):
-		response.Fail(c, http.StatusConflict, err.Error())
+		response.Fail(c, http.StatusBadRequest, err.Error())
 	case errors.Is(err, ErrInvalidCredentials):
 		response.Fail(c, http.StatusUnauthorized, err.Error())
 	case errors.Is(err, ErrUserNotFound):
@@ -39,7 +39,6 @@ func (h *Handler) fail(c *gin.Context, err error) {
 // @Param        body body RegisterRequest true "Data registrasi"
 // @Success      201 {object} response.Body{data=LoginResponse}
 // @Failure      400 {object} response.Body
-// @Failure      409 {object} response.Body
 // @Router       /api/auth/register [post]
 func (h *Handler) Register(c *gin.Context) {
 	var req RegisterRequest
@@ -118,7 +117,6 @@ func (h *Handler) GetProfile(c *gin.Context) {
 // @Param        body body UpdateProfileRequest true "Data profil"
 // @Success      200 {object} response.Body{data=UserResponse}
 // @Failure      400 {object} response.Body
-// @Failure      409 {object} response.Body
 // @Router       /api/auth/profile [put]
 func (h *Handler) UpdateProfile(c *gin.Context) {
 	var req UpdateProfileRequest

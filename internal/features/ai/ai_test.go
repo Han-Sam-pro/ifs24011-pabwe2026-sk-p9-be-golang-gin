@@ -188,6 +188,8 @@ func TestServiceGenerate(t *testing.T) {
 	res, err := NewService(search, llm).Generate(ctx, GenerateRequest{Topic: "Bisnis UMKM", IncludeWebSearch: true})
 	require.NoError(t, err)
 	assert.Equal(t, "Judul AI", res.Title)
+	assert.True(t, res.AIUsed)
+	assert.Empty(t, res.AIWarning)
 	assert.Equal(t, "Bisnis", res.Category) // kategori dari AI dipakai jika user tidak memilih
 	assert.Equal(t, "Ringkas", res.Excerpt)
 	assert.True(t, res.WebSearchUsed)
@@ -212,11 +214,29 @@ func TestServiceGenerate(t *testing.T) {
 	_, err = NewService(search, llm).Generate(ctx, GenerateRequest{Topic: "x", Category: "Olahraga"})
 	assert.ErrorIs(t, err, post.ErrInvalidCategory)
 
-	_, err = NewService(search, &fakeLLM{err: errBoom}).Generate(ctx, GenerateRequest{Topic: "x"})
-	assert.ErrorIs(t, err, ErrAIUnavailable)
+	// AI gagal / respons tidak valid -> tetap 200 dengan draf template
+	res, err = NewService(search, &fakeLLM{err: errBoom}).Generate(ctx, GenerateRequest{Topic: "Energi Surya", IncludeWebSearch: true})
+	require.NoError(t, err)
+	assert.False(t, res.AIUsed)
+	assert.Contains(t, res.AIWarning, "boom")
+	assert.Equal(t, "Energi Surya", res.Title)
+	assert.NotEmpty(t, res.Excerpt)
+	assert.Contains(t, res.Content, "## Pendahuluan")
+	assert.Contains(t, res.Content, "> c [1]")
+	assert.Contains(t, res.Content, "## Sumber Rujukan")
 
-	_, err = NewService(search, &fakeLLM{out: "nope"}).Generate(ctx, GenerateRequest{Topic: "x"})
-	assert.ErrorIs(t, err, ErrInvalidAIResponse)
+	res, err = NewService(search, &fakeLLM{out: "nope"}).Generate(ctx, GenerateRequest{Topic: "x"})
+	require.NoError(t, err)
+	assert.False(t, res.AIUsed)
+	assert.Contains(t, res.AIWarning, "respons AI tidak dapat diproses")
+}
+
+func TestFallbackArticle(t *testing.T) {
+	a := FallbackArticle("Topik", "Bisnis", nil)
+	assert.Equal(t, "Topik", a.Title)
+	assert.Equal(t, "Bisnis", a.Category)
+	assert.Equal(t, "Draf awal artikel bisnis tentang Topik.", a.Excerpt)
+	assert.NotContains(t, a.Content, "> ")
 }
 
 // ---------- Handler ----------
@@ -245,7 +265,5 @@ func TestHandler(t *testing.T) {
 	assert.Equal(t, http.StatusOK, call(&fakeSvc{}, ok))
 	assert.Equal(t, http.StatusBadRequest, call(&fakeSvc{}, `{}`))
 	assert.Equal(t, http.StatusBadRequest, call(&fakeSvc{err: post.ErrInvalidCategory}, ok))
-	assert.Equal(t, http.StatusBadGateway, call(&fakeSvc{err: ErrAIUnavailable}, ok))
-	assert.Equal(t, http.StatusBadGateway, call(&fakeSvc{err: ErrInvalidAIResponse}, ok))
 	assert.Equal(t, http.StatusInternalServerError, call(&fakeSvc{err: errBoom}, ok))
 }

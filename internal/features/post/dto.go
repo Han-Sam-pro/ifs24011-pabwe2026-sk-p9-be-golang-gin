@@ -34,7 +34,7 @@ type AuthorResponse struct {
 // PostResponse adalah representasi artikel pada respons API.
 type PostResponse struct {
 	ID             uint            `json:"id"`
-	UserID         uint            `json:"user_id"`
+	UserID         uint            `json:"user_id,omitempty"`
 	Title          string          `json:"title"`
 	Slug           string          `json:"slug"`
 	Category       string          `json:"category"`

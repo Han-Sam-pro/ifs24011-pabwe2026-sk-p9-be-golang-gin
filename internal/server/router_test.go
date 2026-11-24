@@ -111,13 +111,20 @@ func TestFullFlow(t *testing.T) {
 	code, _ = c.do("POST", "/api/auth/register", gin.H{"name": "Budi", "username": "budi", "email": "budi@x.com", "password": "rahasia"}, "")
 	require.Equal(t, http.StatusCreated, code)
 	code, _ = c.do("POST", "/api/auth/register", gin.H{"name": "Budi", "username": "budi", "email": "budi@x.com", "password": "rahasia"}, "")
-	assert.Equal(t, http.StatusConflict, code)
+	assert.Equal(t, http.StatusBadRequest, code)
 
 	// format penguji: tanpa "name", username dengan underscore/angka
 	code, res := c.do("POST", "/api/auth/register", gin.H{"username": "user_1732", "email": "user_1732@test.com", "password": "rahasia"}, "")
 	require.Equal(t, http.StatusCreated, code, res.Message)
 	assert.Contains(t, string(res.Data), `"name":"user_1732"`)
 	c.login("user_1732", "rahasia")
+
+	// akun admin dibuat penguji lewat registrasi dengan role admin
+	code, res = c.do("POST", "/api/auth/register", gin.H{"username": "admin_uji", "email": "admin_uji@test.com", "password": "rahasia", "role": "admin"}, "")
+	require.Equal(t, http.StatusCreated, code, res.Message)
+	adminUji := c.login("admin_uji", "rahasia")
+	code, _ = c.do("GET", "/api/admin/users", nil, adminUji)
+	assert.Equal(t, http.StatusOK, code)
 
 	token := c.login("budi", "rahasia")
 	code, _ = c.do("GET", "/api/auth/profile", nil, token)
@@ -134,8 +141,12 @@ func TestFullFlow(t *testing.T) {
 	_ = json.Unmarshal(res.Data, &created)
 	assert.Equal(t, "halo-dunia", created.Slug)
 
-	code, _ = c.do("GET", "/api/public/posts?q=halo", nil, "")
+	code, res = c.do("GET", "/api/public/posts?q=halo", nil, "")
 	assert.Equal(t, http.StatusOK, code)
+	assert.NotContains(t, string(res.Data), "user_id")
+	code, res = c.do("GET", "/api/admin/posts", nil, adminUji)
+	assert.Equal(t, http.StatusOK, code)
+	assert.Contains(t, string(res.Data), "user_id")
 	code, _ = c.do("GET", "/api/public/posts/halo-dunia", nil, "")
 	assert.Equal(t, http.StatusOK, code)
 	code, _ = c.do("GET", "/api/posts/stats", nil, token)

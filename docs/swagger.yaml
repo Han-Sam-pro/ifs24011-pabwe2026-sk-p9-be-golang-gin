@@ -32,6 +32,10 @@ definitions:
     type: object
   ai.GenerateResponse:
     properties:
+      ai_used:
+        type: boolean
+      ai_warning:
+        type: string
       category:
         type: string
       content:
@@ -91,6 +95,13 @@ definitions:
         example: rahasia123
         maxLength: 72
         minLength: 6
+        type: string
+      role:
+        description: 'Role opsional: "member" (default) atau "admin".'
+        enum:
+        - admin
+        - member
+        example: member
         type: string
       username:
         example: budi
@@ -457,10 +468,6 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/response.Body'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/response.Body'
       security:
       - BearerAuth: []
       summary: Perbarui profil pengguna yang sedang login
@@ -491,10 +498,6 @@ paths:
               type: object
         "400":
           description: Bad Request
-          schema:
-            $ref: '#/definitions/response.Body'
-        "409":
-          description: Conflict
           schema:
             $ref: '#/definitions/response.Body'
       summary: Registrasi penulis baru
@@ -710,10 +713,6 @@ paths:
               type: object
         "400":
           description: Bad Request
-          schema:
-            $ref: '#/definitions/response.Body'
-        "502":
-          description: Bad Gateway
           schema:
             $ref: '#/definitions/response.Body'
       security:

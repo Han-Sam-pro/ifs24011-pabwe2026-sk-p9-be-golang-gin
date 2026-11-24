@@ -99,6 +99,31 @@ func AppendSources(content string, sources []SearchResult) string {
 	return b.String()
 }
 
+func (s *service) complete(ctx context.Context, req GenerateRequest, category string, sources []SearchResult) (*GeneratedArticle, error) {
+	raw, err := s.llm.Complete(ctx, BuildMessages(req, category, sources))
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrAIUnavailable, err)
+	}
+	return ParseArticle(raw)
+}
+
+// FallbackArticle menyusun draf awal terstruktur dari topik dan sumber web.
+func FallbackArticle(topic, category string, sources []SearchResult) *GeneratedArticle {
+	var b strings.Builder
+	fmt.Fprintf(&b, "## Pendahuluan\n\nArtikel ini membahas **%s**. Lengkapi bagian ini dengan latar belakang dan alasan topik ini penting bagi pembaca.\n\n", topic)
+	b.WriteString("## Pembahasan\n\n- Poin utama pertama\n- Poin utama kedua\n- Poin utama ketiga\n\n")
+	for i, s := range sources {
+		fmt.Fprintf(&b, "> %s [%d]\n\n", s.Snippet, i+1)
+	}
+	b.WriteString("## Kesimpulan\n\nRangkum gagasan utama dan ajak pembaca untuk berdiskusi.\n")
+	return &GeneratedArticle{
+		Title:    topic,
+		Category: category,
+		Excerpt:  fmt.Sprintf("Draf awal artikel %s tentang %s.", strings.ToLower(category), topic),
+		Content:  b.String(),
+	}
+}
+
 func (s *service) Generate(ctx context.Context, req GenerateRequest) (*GenerateResponse, error) {
 	category, err := post.NormalizeCategory(req.Category)
 	if err != nil {
@@ -120,13 +145,14 @@ func (s *service) Generate(ctx context.Context, req GenerateRequest) (*GenerateR
 		}
 	}
 
-	raw, err := s.llm.Complete(ctx, BuildMessages(req, category, res.Sources))
+	article, err := s.complete(ctx, req, category, res.Sources)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrAIUnavailable, err)
-	}
-	article, err := ParseArticle(raw)
-	if err != nil {
-		return nil, err
+		// Layanan AI gagal/tidak dikonfigurasi: tetap kembalikan draf awal
+		// berbasis template agar penulis dapat melanjutkan di editor.
+		res.AIWarning = "Layanan AI tidak tersedia, draf dibuat dari template: " + err.Error()
+		article = FallbackArticle(req.Topic, category, res.Sources)
+	} else {
+		res.AIUsed = true
 	}
 
 	res.Title = strings.TrimSpace(article.Title)

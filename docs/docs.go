@@ -352,12 +352,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/response.Body"
                         }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/response.Body"
-                        }
                     }
                 }
             }
@@ -406,12 +400,6 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Body"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/response.Body"
                         }
@@ -576,12 +564,6 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Body"
-                        }
-                    },
-                    "502": {
-                        "description": "Bad Gateway",
                         "schema": {
                             "$ref": "#/definitions/response.Body"
                         }
@@ -1003,6 +985,12 @@ const docTemplate = `{
         "ai.GenerateResponse": {
             "type": "object",
             "properties": {
+                "ai_used": {
+                    "type": "boolean"
+                },
+                "ai_warning": {
+                    "type": "string"
+                },
                 "category": {
                     "type": "string"
                 },
@@ -1094,6 +1082,15 @@ const docTemplate = `{
                     "maxLength": 72,
                     "minLength": 6,
                     "example": "rahasia123"
+                },
+                "role": {
+                    "description": "Role opsional: \"member\" (default) atau \"admin\".",
+                    "type": "string",
+                    "enum": [
+                        "admin",
+                        "member"
+                    ],
+                    "example": "member"
                 },
                 "username": {
                     "type": "string",

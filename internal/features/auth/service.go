@@ -63,6 +63,9 @@ func (s *service) Register(req RegisterRequest) (*LoginResponse, error) {
 		Password: hash,
 		Role:     database.RoleMember,
 	}
+	if req.Role == database.RoleAdmin {
+		user.Role = database.RoleAdmin
+	}
 	if err := s.repo.Create(user); err != nil {
 		return nil, err
 	}

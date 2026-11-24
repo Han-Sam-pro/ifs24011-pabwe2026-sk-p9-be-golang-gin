@@ -153,7 +153,11 @@ func (s *service) ListPublic(f ListFilter) ([]PostResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ToPostResponses(posts), nil
+	list := ToPostResponses(posts)
+	for i := range list {
+		list[i].UserID = 0 // data internal tidak ditampilkan di endpoint publik
+	}
+	return list, nil
 }
 
 func (s *service) GetPublicBySlug(slug string) (*PostResponse, error) {
@@ -162,6 +166,7 @@ func (s *service) GetPublicBySlug(slug string) (*PostResponse, error) {
 		return nil, mapNotFound(err)
 	}
 	res := ToPostResponse(p)
+	res.UserID = 0
 	return &res, nil
 }
 

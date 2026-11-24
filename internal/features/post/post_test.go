@@ -167,15 +167,15 @@ func (f *fakeRepo) FindPublishedBySlug(s string) (*database.Post, error) { retur
 func (f *fakeRepo) ListByUser(u uint, x ListFilter) ([]database.Post, error) {
 	return f.listByUser(u, x)
 }
-func (f *fakeRepo) FindByID(id uint) (*database.Post, error) { return f.findByID(id) }
-func (f *fakeRepo) Create(p *database.Post) error                      { return f.create(p) }
-func (f *fakeRepo) Update(p *database.Post) error                      { return f.update(p) }
-func (f *fakeRepo) Delete(p *database.Post) error                      { return f.del(p) }
-func (f *fakeRepo) SlugExists(s string, id uint) (bool, error)         { return f.slugExists(s, id) }
-func (f *fakeRepo) CountByUser(u uint) (int64, int64, error)           { return f.count(u) }
-func (f *fakeRepo) ListAll(x ListFilter) ([]database.Post, error)      { return f.listAll(x) }
-func (f *fakeRepo) ListUsersWithStats() ([]UserSummary, error)         { return f.users() }
-func (f *fakeRepo) UserExists(id uint) (bool, error)                   { return f.userExists(id) }
+func (f *fakeRepo) FindByID(id uint) (*database.Post, error)      { return f.findByID(id) }
+func (f *fakeRepo) Create(p *database.Post) error                 { return f.create(p) }
+func (f *fakeRepo) Update(p *database.Post) error                 { return f.update(p) }
+func (f *fakeRepo) Delete(p *database.Post) error                 { return f.del(p) }
+func (f *fakeRepo) SlugExists(s string, id uint) (bool, error)    { return f.slugExists(s, id) }
+func (f *fakeRepo) CountByUser(u uint) (int64, int64, error)      { return f.count(u) }
+func (f *fakeRepo) ListAll(x ListFilter) ([]database.Post, error) { return f.listAll(x) }
+func (f *fakeRepo) ListUsersWithStats() ([]UserSummary, error)    { return f.users() }
+func (f *fakeRepo) UserExists(id uint) (bool, error)              { return f.userExists(id) }
 
 func samplePost(published bool) *database.Post {
 	return &database.Post{ID: 5, UserID: 1, Title: "Judul Lama", Slug: "judul-lama", Category: "Umum", Content: "isi", IsPublished: published}
@@ -374,6 +374,7 @@ func TestServiceToggleDelete(t *testing.T) {
 
 type fakeSvc struct {
 	err       error
+	updateErr error
 	published bool
 }
 
@@ -396,6 +397,9 @@ func (f *fakeSvc) ListMine(uint, ListFilter) ([]PostResponse, error) { return f.
 func (f *fakeSvc) GetMine(uint, uint) (*PostResponse, error)         { return f.one() }
 func (f *fakeSvc) Create(uint, PostRequest) (*PostResponse, error)   { return f.one() }
 func (f *fakeSvc) Update(uint, uint, PostRequest) (*PostResponse, error) {
+	if f.updateErr != nil {
+		return nil, f.updateErr
+	}
 	return f.one()
 }
 func (f *fakeSvc) TogglePublish(uint, uint) (*PostResponse, error) { return f.one() }
@@ -495,6 +499,10 @@ func TestHandlerErrors(t *testing.T) {
 	r := engine(&fakeSvc{err: ErrInvalidCategory})
 	assert.Equal(t, http.StatusBadRequest, call(r, "POST", "/posts", req).Code)
 	assert.Equal(t, http.StatusForbidden, call(engine(&fakeSvc{err: ErrForbidden}), "GET", "/posts/1", nil).Code)
+	// PUT ke artikel tidak ada / milik orang lain dengan body tidak lengkap: 404/403 (bukan 400)
+	assert.Equal(t, http.StatusNotFound, call(engine(&fakeSvc{err: ErrPostNotFound}), "PUT", "/posts/99", `{"title":"Tidak Ada"}`).Code)
+	assert.Equal(t, http.StatusForbidden, call(engine(&fakeSvc{err: ErrForbidden}), "PUT", "/posts/1", `{"title":"Dibajak"}`).Code)
+	assert.Equal(t, http.StatusInternalServerError, call(engine(&fakeSvc{updateErr: errBoom}), "PUT", "/posts/1", req).Code)
 }
 
 func TestHandlerBadInput(t *testing.T) {

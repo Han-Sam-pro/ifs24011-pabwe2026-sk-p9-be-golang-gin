@@ -28,7 +28,6 @@ func NewHandler(svc Service) *Handler {
 // @Param        body body GenerateRequest true "Topik artikel"
 // @Success      200 {object} response.Body{data=GenerateResponse}
 // @Failure      400 {object} response.Body
-// @Failure      502 {object} response.Body
 // @Router       /api/posts/ai-generate [post]
 func (h *Handler) Generate(c *gin.Context) {
 	var req GenerateRequest
@@ -39,11 +38,9 @@ func (h *Handler) Generate(c *gin.Context) {
 	res, err := h.svc.Generate(c.Request.Context(), req)
 	switch {
 	case err == nil:
-		response.Success(c, http.StatusOK, "Draf artikel berhasil dibuat oleh AI", res)
+		response.Success(c, http.StatusOK, "Draf artikel berhasil dibuat", res)
 	case errors.Is(err, post.ErrInvalidCategory):
 		response.Fail(c, http.StatusBadRequest, err.Error())
-	case errors.Is(err, ErrAIUnavailable), errors.Is(err, ErrInvalidAIResponse):
-		response.Error(c, http.StatusBadGateway, err.Error())
 	default:
 		response.Error(c, http.StatusInternalServerError, "Terjadi kesalahan pada server")
 	}

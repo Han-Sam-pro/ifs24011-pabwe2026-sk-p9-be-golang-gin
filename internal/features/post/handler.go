@@ -194,6 +194,11 @@ func (h *Handler) Update(c *gin.Context) {
 	if !ok {
 		return
 	}
+	// 404/403 didahulukan sebelum validasi body.
+	if _, err := h.svc.GetMine(middleware.UserID(c), id); err != nil {
+		h.fail(c, err)
+		return
+	}
 	req, ok := bindPost(c)
 	if !ok {
 		return

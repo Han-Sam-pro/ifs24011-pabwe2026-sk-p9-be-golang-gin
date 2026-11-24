@@ -36,4 +36,6 @@ type GenerateResponse struct {
 	Sources       []SearchResult `json:"sources"`
 	WebSearchUsed bool           `json:"web_search_used"`
 	SearchWarning string         `json:"search_warning,omitempty"`
+	AIUsed        bool           `json:"ai_used"`
+	AIWarning     string         `json:"ai_warning,omitempty"`
 }

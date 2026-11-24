@@ -13,6 +13,8 @@ type RegisterRequest struct {
 	Username string `json:"username" binding:"required,min=3,max=50,excludesall= " example:"budi"`
 	Email    string `json:"email" binding:"required,email,max=150" example:"budi@example.com"`
 	Password string `json:"password" binding:"required,min=6,max=72" example:"rahasia123"`
+	// Role opsional: "member" (default) atau "admin".
+	Role string `json:"role" binding:"omitempty,oneof=admin member" example:"member"`
 }
 
 // LoginRequest adalah payload login (username atau email).

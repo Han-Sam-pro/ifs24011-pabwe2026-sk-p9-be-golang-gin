@@ -102,6 +102,15 @@ func TestServiceRegister(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, uint(1), claims.UserID)
 
+	adm := regReq
+	adm.Role = "admin"
+	res, err = NewService(r, "s").Register(adm)
+	require.NoError(t, err)
+	assert.Equal(t, "admin", res.User.Role)
+	res, err = NewService(r, "s").Register(regReq)
+	require.NoError(t, err)
+	assert.Equal(t, "member", res.User.Role)
+
 	noName := regReq
 	noName.Name = "  "
 	res, err = NewService(r, "s").Register(noName)
@@ -272,7 +281,7 @@ func TestHandlerRegisterLogin(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, call(r, "POST", "/login", "{}", "").Code)
 
 	cases := map[error]int{
-		ErrConflict:           http.StatusConflict,
+		ErrConflict:           http.StatusBadRequest,
 		ErrInvalidCredentials: http.StatusUnauthorized,
 		ErrUserNotFound:       http.StatusNotFound,
 		errBoom:               http.StatusInternalServerError,
