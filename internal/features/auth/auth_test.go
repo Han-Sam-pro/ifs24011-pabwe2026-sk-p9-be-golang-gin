@@ -99,6 +99,12 @@ func TestServiceRegister(t *testing.T) {
 	assert.Equal(t, "budi@x.com", res.Email)
 	assert.Equal(t, "Budi", res.Name)
 
+	noName := regReq
+	noName.Name = "  "
+	res, err = NewService(r, "s").Register(noName)
+	require.NoError(t, err)
+	assert.Equal(t, "Budi", res.Name) // nama default = username asli
+
 	r.isTaken = func(string, string, uint) (bool, error) { return false, errBoom }
 	_, err = NewService(r, "s").Register(regReq)
 	assert.ErrorIs(t, err, errBoom)
@@ -164,6 +170,12 @@ func TestServiceUpdateProfile(t *testing.T) {
 	noPw.Password = ""
 	_, err = NewService(r, "s").UpdateProfile(1, noPw)
 	require.NoError(t, err)
+
+	// field kosong tidak mengubah nama/email
+	res, err = NewService(r, "s").UpdateProfile(1, UpdateProfileRequest{})
+	require.NoError(t, err)
+	assert.Equal(t, "Budi", res.Name)
+	assert.Equal(t, "budi@x.com", res.Email)
 	assert.True(t, database.CheckPassword(saved.Password, "secret1"))
 
 	r.findByID = func(uint) (*database.User, error) { return nil, gorm.ErrRecordNotFound }
@@ -275,7 +287,7 @@ func TestHandlerProfileAndLogout(t *testing.T) {
 	assert.Equal(t, http.StatusOK, call(r, "GET", "/profile", nil, tok).Code)
 	upd := UpdateProfileRequest{Name: "Budi", Email: "b@x.com"}
 	assert.Equal(t, http.StatusOK, call(r, "PUT", "/profile", upd, tok).Code)
-	assert.Equal(t, http.StatusBadRequest, call(r, "PUT", "/profile", "{}", tok).Code)
+	assert.Equal(t, http.StatusBadRequest, call(r, "PUT", "/profile", `{"email":"bukan-email"}`, tok).Code)
 
 	bad := engine(&fakeSvc{err: ErrUserNotFound})
 	assert.Equal(t, http.StatusNotFound, call(bad, "GET", "/profile", nil, tok).Code)

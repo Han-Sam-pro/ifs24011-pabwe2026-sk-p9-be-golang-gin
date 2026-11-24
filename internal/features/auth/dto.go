@@ -9,8 +9,8 @@ import (
 
 // RegisterRequest adalah payload pendaftaran penulis baru.
 type RegisterRequest struct {
-	Name     string `json:"name" binding:"required,min=2,max=100" example:"Budi Santoso"`
-	Username string `json:"username" binding:"required,min=3,max=50,alphanum" example:"budi"`
+	Name     string `json:"name" binding:"omitempty,max=100" example:"Budi Santoso"`
+	Username string `json:"username" binding:"required,min=3,max=50,excludesall= " example:"budi"`
 	Email    string `json:"email" binding:"required,email,max=150" example:"budi@example.com"`
 	Password string `json:"password" binding:"required,min=6,max=72" example:"rahasia123"`
 }
@@ -23,8 +23,8 @@ type LoginRequest struct {
 
 // UpdateProfileRequest adalah payload pembaruan profil.
 type UpdateProfileRequest struct {
-	Name     string `json:"name" binding:"required,min=2,max=100" example:"Budi Santoso"`
-	Email    string `json:"email" binding:"required,email,max=150" example:"budi@example.com"`
+	Name     string `json:"name" binding:"omitempty,max=100" example:"Budi Santoso"`
+	Email    string `json:"email" binding:"omitempty,email,max=150" example:"budi@example.com"`
 	Password string `json:"password" binding:"omitempty,min=6,max=72" example:""`
 }
 

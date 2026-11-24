@@ -1075,7 +1075,6 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "email",
-                "name",
                 "password",
                 "username"
             ],
@@ -1088,7 +1087,6 @@ const docTemplate = `{
                 "name": {
                     "type": "string",
                     "maxLength": 100,
-                    "minLength": 2,
                     "example": "Budi Santoso"
                 },
                 "password": {
@@ -1107,10 +1105,6 @@ const docTemplate = `{
         },
         "auth.UpdateProfileRequest": {
             "type": "object",
-            "required": [
-                "email",
-                "name"
-            ],
             "properties": {
                 "email": {
                     "type": "string",
@@ -1120,7 +1114,6 @@ const docTemplate = `{
                 "name": {
                     "type": "string",
                     "maxLength": 100,
-                    "minLength": 2,
                     "example": "Budi Santoso"
                 },
                 "password": {

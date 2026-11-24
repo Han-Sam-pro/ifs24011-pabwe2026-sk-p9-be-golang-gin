@@ -1072,7 +1072,6 @@
             "type": "object",
             "required": [
                 "email",
-                "name",
                 "password",
                 "username"
             ],
@@ -1085,7 +1084,6 @@
                 "name": {
                     "type": "string",
                     "maxLength": 100,
-                    "minLength": 2,
                     "example": "Budi Santoso"
                 },
                 "password": {
@@ -1104,10 +1102,6 @@
         },
         "auth.UpdateProfileRequest": {
             "type": "object",
-            "required": [
-                "email",
-                "name"
-            ],
             "properties": {
                 "email": {
                     "type": "string",
@@ -1117,7 +1111,6 @@
                 "name": {
                     "type": "string",
                     "maxLength": 100,
-                    "minLength": 2,
                     "example": "Budi Santoso"
                 },
                 "password": {

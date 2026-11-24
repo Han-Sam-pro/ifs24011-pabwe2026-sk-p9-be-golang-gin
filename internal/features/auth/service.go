@@ -38,6 +38,11 @@ func NewService(repo Repository, secret string) Service {
 func (s *service) Register(req RegisterRequest) (*UserResponse, error) {
 	username := strings.ToLower(strings.TrimSpace(req.Username))
 	email := strings.ToLower(strings.TrimSpace(req.Email))
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		// Nama opsional: gunakan username jika tidak diisi.
+		name = strings.TrimSpace(req.Username)
+	}
 
 	taken, err := s.repo.IsTaken(username, email, 0)
 	if err != nil {
@@ -51,7 +56,7 @@ func (s *service) Register(req RegisterRequest) (*UserResponse, error) {
 		return nil, err
 	}
 	user := &database.User{
-		Name:     strings.TrimSpace(req.Name),
+		Name:     name,
 		Username: username,
 		Email:    email,
 		Password: hash,
@@ -102,6 +107,9 @@ func (s *service) UpdateProfile(userID uint, req UpdateProfileRequest) (*UserRes
 		return nil, err
 	}
 	email := strings.ToLower(strings.TrimSpace(req.Email))
+	if email == "" {
+		email = user.Email // field kosong = tidak diubah
+	}
 	taken, err := s.repo.IsTaken(user.Username, email, user.ID)
 	if err != nil {
 		return nil, err
@@ -109,7 +117,9 @@ func (s *service) UpdateProfile(userID uint, req UpdateProfileRequest) (*UserRes
 	if taken {
 		return nil, ErrConflict
 	}
-	user.Name = strings.TrimSpace(req.Name)
+	if name := strings.TrimSpace(req.Name); name != "" {
+		user.Name = name
+	}
 	user.Email = email
 	if req.Password != "" {
 		hash, err := database.HashPassword(req.Password)

@@ -113,13 +113,19 @@ func TestFullFlow(t *testing.T) {
 	code, _ = c.do("POST", "/api/auth/register", gin.H{"name": "Budi", "username": "budi", "email": "budi@x.com", "password": "rahasia"}, "")
 	assert.Equal(t, http.StatusConflict, code)
 
+	// format penguji: tanpa "name", username dengan underscore/angka
+	code, res := c.do("POST", "/api/auth/register", gin.H{"username": "user_1732", "email": "user_1732@test.com", "password": "rahasia"}, "")
+	require.Equal(t, http.StatusCreated, code, res.Message)
+	assert.Contains(t, string(res.Data), `"name":"user_1732"`)
+	c.login("user_1732", "rahasia")
+
 	token := c.login("budi", "rahasia")
 	code, _ = c.do("GET", "/api/auth/profile", nil, token)
 	assert.Equal(t, http.StatusOK, code)
 	code, _ = c.do("PUT", "/api/auth/profile", gin.H{"name": "Budi S", "email": "budi@x.com"}, token)
 	assert.Equal(t, http.StatusOK, code)
 
-	code, res := c.do("POST", "/api/posts", gin.H{"title": "Halo Dunia", "category": "Teknologi", "content": "isi artikel", "is_published": true}, token)
+	code, res = c.do("POST", "/api/posts", gin.H{"title": "Halo Dunia", "category": "Teknologi", "content": "isi artikel", "is_published": true}, token)
 	require.Equal(t, http.StatusCreated, code, res.Message)
 	var created struct {
 		ID   uint
