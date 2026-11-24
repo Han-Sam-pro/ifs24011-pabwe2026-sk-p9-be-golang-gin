@@ -14,7 +14,7 @@ type Repository interface {
 	ListPublished(f ListFilter) ([]database.Post, error)
 	FindPublishedBySlug(slug string) (*database.Post, error)
 	ListByUser(userID uint, f ListFilter) ([]database.Post, error)
-	FindByIDForUser(id, userID uint) (*database.Post, error)
+	FindByID(id uint) (*database.Post, error)
 	Create(p *database.Post) error
 	Update(p *database.Post) error
 	Delete(p *database.Post) error
@@ -67,9 +67,9 @@ func (r *gormRepository) ListByUser(userID uint, f ListFilter) ([]database.Post,
 	return posts, err
 }
 
-func (r *gormRepository) FindByIDForUser(id, userID uint) (*database.Post, error) {
+func (r *gormRepository) FindByID(id uint) (*database.Post, error) {
 	var p database.Post
-	if err := r.db.Preload("User").Where("id = ? AND user_id = ?", id, userID).First(&p).Error; err != nil {
+	if err := r.db.Preload("User").Where("id = ?", id).First(&p).Error; err != nil {
 		return nil, err
 	}
 	return &p, nil

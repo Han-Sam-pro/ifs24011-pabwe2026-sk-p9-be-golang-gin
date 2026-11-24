@@ -16,6 +16,7 @@ import (
 var (
 	ErrPostNotFound    = errors.New("artikel tidak ditemukan")
 	ErrUserNotFound    = errors.New("pengguna tidak ditemukan")
+	ErrForbidden       = errors.New("anda tidak memiliki akses ke artikel ini")
 	ErrInvalidCategory = errors.New("kategori tidak valid")
 )
 
@@ -116,6 +117,18 @@ func mapNotFound(err error) error {
 	return err
 }
 
+// findOwned: 404 jika artikel tidak ada, 403 jika milik penulis lain.
+func (s *service) findOwned(userID, id uint) (*database.Post, error) {
+	p, err := s.repo.FindByID(id)
+	if err != nil {
+		return nil, mapNotFound(err)
+	}
+	if p.UserID != userID {
+		return nil, ErrForbidden
+	}
+	return p, nil
+}
+
 func (s *service) uniqueSlug(title string, excludeID uint) (string, error) {
 	base := Slugify(title)
 	slug := base
@@ -161,9 +174,9 @@ func (s *service) ListMine(userID uint, f ListFilter) ([]PostResponse, error) {
 }
 
 func (s *service) GetMine(userID, id uint) (*PostResponse, error) {
-	p, err := s.repo.FindByIDForUser(id, userID)
+	p, err := s.findOwned(userID, id)
 	if err != nil {
-		return nil, mapNotFound(err)
+		return nil, err
 	}
 	res := ToPostResponse(p)
 	return &res, nil
@@ -196,9 +209,9 @@ func (s *service) Create(userID uint, req PostRequest) (*PostResponse, error) {
 }
 
 func (s *service) Update(userID, id uint, req PostRequest) (*PostResponse, error) {
-	p, err := s.repo.FindByIDForUser(id, userID)
+	p, err := s.findOwned(userID, id)
 	if err != nil {
-		return nil, mapNotFound(err)
+		return nil, err
 	}
 	category, err := NormalizeCategory(req.Category)
 	if err != nil {
@@ -226,9 +239,9 @@ func (s *service) Update(userID, id uint, req PostRequest) (*PostResponse, error
 }
 
 func (s *service) TogglePublish(userID, id uint) (*PostResponse, error) {
-	p, err := s.repo.FindByIDForUser(id, userID)
+	p, err := s.findOwned(userID, id)
 	if err != nil {
-		return nil, mapNotFound(err)
+		return nil, err
 	}
 	setPublished(p, !p.IsPublished)
 	if err := s.repo.Update(p); err != nil {
@@ -239,9 +252,9 @@ func (s *service) TogglePublish(userID, id uint) (*PostResponse, error) {
 }
 
 func (s *service) Delete(userID, id uint) error {
-	p, err := s.repo.FindByIDForUser(id, userID)
+	p, err := s.findOwned(userID, id)
 	if err != nil {
-		return mapNotFound(err)
+		return err
 	}
 	return s.repo.Delete(p)
 }
@@ -251,11 +264,24 @@ func (s *service) Stats(userID uint) (*StatsResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &StatsResponse{Total: total, Published: published, Draft: total - published}, nil
+	draft := total - published
+	return &StatsResponse{
+		Total: total, Published: published, Draft: draft,
+		TotalArticles: total, TotalSelesai: published, BelumSelesai: draft,
+	}, nil
 }
 
 func (s *service) AdminUsers() ([]UserSummary, error) {
-	return s.repo.ListUsersWithStats()
+	users, err := s.repo.ListUsersWithStats()
+	if err != nil {
+		return nil, err
+	}
+	for i := range users {
+		users[i].TotalArticles = users[i].TotalPosts
+		users[i].TotalSelesai = users[i].PublishedPosts
+		users[i].BelumSelesai = users[i].TotalPosts - users[i].PublishedPosts
+	}
+	return users, nil
 }
 
 func (s *service) AdminPosts(f ListFilter) ([]PostResponse, error) {
@@ -272,7 +298,8 @@ func (s *service) AdminUserPosts(userID uint) ([]PostResponse, error) {
 		return nil, err
 	}
 	if !exists {
-		return nil, ErrUserNotFound
+		// User tidak ada: kembalikan daftar kosong, bukan error.
+		return []PostResponse{}, nil
 	}
 	return s.ListMine(userID, ListFilter{})
 }

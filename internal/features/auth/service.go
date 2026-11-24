@@ -19,7 +19,7 @@ var (
 
 // Service adalah kontrak logika bisnis autentikasi.
 type Service interface {
-	Register(req RegisterRequest) (*UserResponse, error)
+	Register(req RegisterRequest) (*LoginResponse, error)
 	Login(req LoginRequest) (*LoginResponse, error)
 	Profile(userID uint) (*UserResponse, error)
 	UpdateProfile(userID uint, req UpdateProfileRequest) (*UserResponse, error)
@@ -35,13 +35,14 @@ func NewService(repo Repository, secret string) Service {
 	return &service{repo: repo, secret: secret}
 }
 
-func (s *service) Register(req RegisterRequest) (*UserResponse, error) {
-	username := strings.ToLower(strings.TrimSpace(req.Username))
-	email := strings.ToLower(strings.TrimSpace(req.Email))
+func (s *service) Register(req RegisterRequest) (*LoginResponse, error) {
+	// Username & email disimpan apa adanya; pencocokan tidak peka huruf besar/kecil.
+	username := strings.TrimSpace(req.Username)
+	email := strings.TrimSpace(req.Email)
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
 		// Nama opsional: gunakan username jika tidak diisi.
-		name = strings.TrimSpace(req.Username)
+		name = username
 	}
 
 	taken, err := s.repo.IsTaken(username, email, 0)
@@ -65,12 +66,12 @@ func (s *service) Register(req RegisterRequest) (*UserResponse, error) {
 	if err := s.repo.Create(user); err != nil {
 		return nil, err
 	}
-	res := ToUserResponse(user)
-	return &res, nil
+	// Registrasi langsung mengembalikan token JWT (langsung login).
+	return s.issueToken(user), nil
 }
 
 func (s *service) Login(req LoginRequest) (*LoginResponse, error) {
-	user, err := s.repo.FindByLogin(strings.ToLower(strings.TrimSpace(req.Username)))
+	user, err := s.repo.FindByLogin(strings.TrimSpace(req.Username))
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrInvalidCredentials
 	}
@@ -80,8 +81,12 @@ func (s *service) Login(req LoginRequest) (*LoginResponse, error) {
 	if !database.CheckPassword(user.Password, req.Password) {
 		return nil, ErrInvalidCredentials
 	}
+	return s.issueToken(user), nil
+}
+
+func (s *service) issueToken(user *database.User) *LoginResponse {
 	token := middleware.GenerateToken(s.secret, user.ID, user.Username, user.Role, middleware.TokenTTL)
-	return &LoginResponse{Token: token, User: ToUserResponse(user)}, nil
+	return &LoginResponse{Token: token, User: ToUserResponse(user)}
 }
 
 func (s *service) findUser(userID uint) (*database.User, error) {
@@ -106,7 +111,7 @@ func (s *service) UpdateProfile(userID uint, req UpdateProfileRequest) (*UserRes
 	if err != nil {
 		return nil, err
 	}
-	email := strings.ToLower(strings.TrimSpace(req.Email))
+	email := strings.TrimSpace(req.Email)
 	if email == "" {
 		email = user.Email // field kosong = tidak diubah
 	}

@@ -54,6 +54,11 @@ type StatsResponse struct {
 	Total     int64 `json:"total" example:"10"`
 	Published int64 `json:"published" example:"7"`
 	Draft     int64 `json:"draft" example:"3"`
+
+	// Nama kunci 3 kartu statistik: Total Artikel, Total Selesai, Belum Selesai.
+	TotalArticles int64 `json:"total_articles" example:"10"`
+	TotalSelesai  int64 `json:"total_selesai" example:"7"`
+	BelumSelesai  int64 `json:"belum_selesai" example:"3"`
 }
 
 // UserSummary adalah ringkasan pengguna untuk monitoring admin.
@@ -65,6 +70,9 @@ type UserSummary struct {
 	Role           string `json:"role"`
 	TotalPosts     int64  `json:"total_posts"`
 	PublishedPosts int64  `json:"published_posts"`
+	TotalArticles  int64  `json:"total_articles" gorm:"-"`
+	TotalSelesai   int64  `json:"total_selesai" gorm:"-"`
+	BelumSelesai   int64  `json:"belum_selesai" gorm:"-"`
 }
 
 // ToPostResponse memetakan model Post ke PostResponse.

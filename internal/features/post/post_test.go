@@ -98,11 +98,12 @@ func TestRepository(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, mine, 2)
 
-	got, err = repo.FindByIDForUser(p2.ID, u1.ID)
+	got, err = repo.FindByID(p2.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "draf-bisnis", got.Slug)
-	_, err = repo.FindByIDForUser(p2.ID, u2.ID)
-	assert.Error(t, err)
+	assert.Equal(t, "budi", got.User.Username)
+	_, err = repo.FindByID(9999)
+	assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
 
 	exists, err := repo.SlugExists("draf-bisnis", 0)
 	require.NoError(t, err)
@@ -150,7 +151,7 @@ type fakeRepo struct {
 	listPublished func(ListFilter) ([]database.Post, error)
 	findSlug      func(string) (*database.Post, error)
 	listByUser    func(uint, ListFilter) ([]database.Post, error)
-	findForUser   func(uint, uint) (*database.Post, error)
+	findByID      func(uint) (*database.Post, error)
 	create        func(*database.Post) error
 	update        func(*database.Post) error
 	del           func(*database.Post) error
@@ -166,7 +167,7 @@ func (f *fakeRepo) FindPublishedBySlug(s string) (*database.Post, error) { retur
 func (f *fakeRepo) ListByUser(u uint, x ListFilter) ([]database.Post, error) {
 	return f.listByUser(u, x)
 }
-func (f *fakeRepo) FindByIDForUser(id, u uint) (*database.Post, error) { return f.findForUser(id, u) }
+func (f *fakeRepo) FindByID(id uint) (*database.Post, error) { return f.findByID(id) }
 func (f *fakeRepo) Create(p *database.Post) error                      { return f.create(p) }
 func (f *fakeRepo) Update(p *database.Post) error                      { return f.update(p) }
 func (f *fakeRepo) Delete(p *database.Post) error                      { return f.del(p) }
@@ -186,7 +187,7 @@ func okRepo() *fakeRepo {
 		listPublished: func(ListFilter) ([]database.Post, error) { return list() },
 		findSlug:      func(string) (*database.Post, error) { return samplePost(true), nil },
 		listByUser:    func(uint, ListFilter) ([]database.Post, error) { return list() },
-		findForUser:   func(uint, uint) (*database.Post, error) { return samplePost(false), nil },
+		findByID:      func(uint) (*database.Post, error) { return samplePost(false), nil },
 		create:        func(p *database.Post) error { p.ID = 9; return nil },
 		update:        func(*database.Post) error { return nil },
 		del:           func(*database.Post) error { return nil },
@@ -217,9 +218,19 @@ func TestServiceReadOnly(t *testing.T) {
 	stats, err := s.Stats(1)
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), stats.Draft)
+	assert.Equal(t, int64(5), stats.TotalArticles)
+	assert.Equal(t, int64(3), stats.TotalSelesai)
+	assert.Equal(t, int64(2), stats.BelumSelesai)
+	r.users = func() ([]UserSummary, error) { return []UserSummary{{ID: 1, TotalPosts: 4, PublishedPosts: 1}}, nil }
 	users, err := s.AdminUsers()
 	require.NoError(t, err)
-	assert.Len(t, users, 1)
+	require.Len(t, users, 1)
+	assert.Equal(t, int64(4), users[0].TotalArticles)
+	assert.Equal(t, int64(1), users[0].TotalSelesai)
+	assert.Equal(t, int64(3), users[0].BelumSelesai)
+	r.users = func() ([]UserSummary, error) { return nil, errBoom }
+	_, err = s.AdminUsers()
+	assert.ErrorIs(t, err, errBoom)
 	_, err = s.AdminPosts(ListFilter{})
 	require.NoError(t, err)
 	_, err = s.AdminUserPosts(1)
@@ -228,7 +239,7 @@ func TestServiceReadOnly(t *testing.T) {
 	r.listPublished = func(ListFilter) ([]database.Post, error) { return nil, errBoom }
 	r.findSlug = func(string) (*database.Post, error) { return nil, gorm.ErrRecordNotFound }
 	r.listByUser = func(uint, ListFilter) ([]database.Post, error) { return nil, errBoom }
-	r.findForUser = func(uint, uint) (*database.Post, error) { return nil, errBoom }
+	r.findByID = func(uint) (*database.Post, error) { return nil, errBoom }
 	r.count = func(uint) (int64, int64, error) { return 0, 0, errBoom }
 	r.listAll = func(ListFilter) ([]database.Post, error) { return nil, errBoom }
 	_, err = s.ListPublic(ListFilter{})
@@ -248,8 +259,25 @@ func TestServiceReadOnly(t *testing.T) {
 	_, err = s.AdminUserPosts(1)
 	assert.ErrorIs(t, err, errBoom)
 	r.userExists = func(uint) (bool, error) { return false, nil }
-	_, err = s.AdminUserPosts(1)
-	assert.ErrorIs(t, err, ErrUserNotFound)
+	empty, err := s.AdminUserPosts(1)
+	require.NoError(t, err) // user tidak ada -> daftar kosong
+	assert.NotNil(t, empty)
+	assert.Empty(t, empty)
+}
+
+func TestServiceForbidden(t *testing.T) {
+	r := okRepo()
+	other := samplePost(false)
+	other.UserID = 99
+	r.findByID = func(uint) (*database.Post, error) { return other, nil }
+	s := NewService(r)
+	_, err := s.GetMine(1, 5)
+	assert.ErrorIs(t, err, ErrForbidden)
+	_, err = s.Update(1, 5, req)
+	assert.ErrorIs(t, err, ErrForbidden)
+	_, err = s.TogglePublish(1, 5)
+	assert.ErrorIs(t, err, ErrForbidden)
+	assert.ErrorIs(t, s.Delete(1, 5), ErrForbidden)
 }
 
 func TestServiceCreate(t *testing.T) {
@@ -298,7 +326,7 @@ func TestServiceUpdate(t *testing.T) {
 	assert.Equal(t, "judul-lama", res.Slug)
 	assert.Nil(t, res.PublishedAt)
 
-	r.findForUser = func(uint, uint) (*database.Post, error) { return nil, gorm.ErrRecordNotFound }
+	r.findByID = func(uint) (*database.Post, error) { return nil, gorm.ErrRecordNotFound }
 	_, err = NewService(r).Update(1, 5, req)
 	assert.ErrorIs(t, err, ErrPostNotFound)
 
@@ -324,7 +352,7 @@ func TestServiceToggleDelete(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, res.IsPublished)
 
-	r.findForUser = func(uint, uint) (*database.Post, error) { return samplePost(true), nil }
+	r.findByID = func(uint) (*database.Post, error) { return samplePost(true), nil }
 	res, _ = NewService(r).TogglePublish(1, 5)
 	assert.False(t, res.IsPublished)
 	assert.Nil(t, res.PublishedAt)
@@ -333,7 +361,7 @@ func TestServiceToggleDelete(t *testing.T) {
 	_, err = NewService(r).TogglePublish(1, 5)
 	assert.ErrorIs(t, err, errBoom)
 
-	r.findForUser = func(uint, uint) (*database.Post, error) { return nil, gorm.ErrRecordNotFound }
+	r.findByID = func(uint) (*database.Post, error) { return nil, gorm.ErrRecordNotFound }
 	_, err = NewService(r).TogglePublish(1, 5)
 	assert.ErrorIs(t, err, ErrPostNotFound)
 	assert.ErrorIs(t, NewService(r).Delete(1, 5), ErrPostNotFound)
@@ -457,7 +485,7 @@ func TestHandlerSuccess(t *testing.T) {
 }
 
 func TestHandlerErrors(t *testing.T) {
-	for _, e := range []error{ErrPostNotFound, errBoom} {
+	for _, e := range []error{ErrPostNotFound, ErrForbidden, errBoom} {
 		r := engine(&fakeSvc{err: e})
 		for _, c := range allRoutes {
 			w := call(r, c.method, c.path, c.body)
@@ -466,6 +494,7 @@ func TestHandlerErrors(t *testing.T) {
 	}
 	r := engine(&fakeSvc{err: ErrInvalidCategory})
 	assert.Equal(t, http.StatusBadRequest, call(r, "POST", "/posts", req).Code)
+	assert.Equal(t, http.StatusForbidden, call(engine(&fakeSvc{err: ErrForbidden}), "GET", "/posts/1", nil).Code)
 }
 
 func TestHandlerBadInput(t *testing.T) {

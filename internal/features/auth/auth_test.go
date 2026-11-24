@@ -95,15 +95,18 @@ func TestServiceRegister(t *testing.T) {
 	r := okRepo()
 	res, err := NewService(r, "s").Register(regReq)
 	require.NoError(t, err)
-	assert.Equal(t, "budi", res.Username)
-	assert.Equal(t, "budi@x.com", res.Email)
-	assert.Equal(t, "Budi", res.Name)
+	assert.Equal(t, "Budi", res.User.Username) // disimpan apa adanya
+	assert.Equal(t, "BUDI@x.com", res.User.Email)
+	assert.Equal(t, "Budi", res.User.Name)
+	claims, err := middleware.ParseToken("s", res.Token)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), claims.UserID)
 
 	noName := regReq
 	noName.Name = "  "
 	res, err = NewService(r, "s").Register(noName)
 	require.NoError(t, err)
-	assert.Equal(t, "Budi", res.Name) // nama default = username asli
+	assert.Equal(t, "Budi", res.User.Name) // nama default = username
 
 	r.isTaken = func(string, string, uint) (bool, error) { return false, errBoom }
 	_, err = NewService(r, "s").Register(regReq)
@@ -163,7 +166,7 @@ func TestServiceUpdateProfile(t *testing.T) {
 	r.update = func(u *database.User) error { saved = u; return nil }
 	res, err := NewService(r, "s").UpdateProfile(1, req)
 	require.NoError(t, err)
-	assert.Equal(t, "new@x.com", res.Email)
+	assert.Equal(t, "NEW@x.com", res.Email)
 	assert.True(t, database.CheckPassword(saved.Password, "newpass"))
 
 	noPw := req
@@ -206,11 +209,11 @@ func TestServiceUpdateProfile(t *testing.T) {
 
 type fakeSvc struct{ err error }
 
-func (f *fakeSvc) Register(RegisterRequest) (*UserResponse, error) {
+func (f *fakeSvc) Register(RegisterRequest) (*LoginResponse, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
-	return &UserResponse{ID: 1, Username: "budi"}, nil
+	return &LoginResponse{Token: "tok", User: UserResponse{ID: 1, Username: "budi"}}, nil
 }
 func (f *fakeSvc) Login(LoginRequest) (*LoginResponse, error) {
 	if f.err != nil {

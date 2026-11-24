@@ -36,7 +36,7 @@ func (r *gormRepository) FindByID(id uint) (*database.User, error) {
 
 func (r *gormRepository) FindByLogin(identity string) (*database.User, error) {
 	var u database.User
-	if err := r.db.Where("username = ? OR email = ?", identity, identity).First(&u).Error; err != nil {
+	if err := r.db.Where("LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?)", identity, identity).First(&u).Error; err != nil {
 		return nil, err
 	}
 	return &u, nil
@@ -45,7 +45,7 @@ func (r *gormRepository) FindByLogin(identity string) (*database.User, error) {
 func (r *gormRepository) IsTaken(username, email string, excludeID uint) (bool, error) {
 	var count int64
 	err := r.db.Model(&database.User{}).
-		Where("(username = ? OR email = ?) AND id <> ?", username, email, excludeID).
+		Where("(LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?)) AND id <> ?", username, email, excludeID).
 		Count(&count).Error
 	return count > 0, err
 }

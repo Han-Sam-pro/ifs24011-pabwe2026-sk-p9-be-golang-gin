@@ -37,7 +37,7 @@ func (h *Handler) fail(c *gin.Context, err error) {
 // @Accept       json
 // @Produce      json
 // @Param        body body RegisterRequest true "Data registrasi"
-// @Success      201 {object} response.Body{data=UserResponse}
+// @Success      201 {object} response.Body{data=LoginResponse}
 // @Failure      400 {object} response.Body
 // @Failure      409 {object} response.Body
 // @Router       /api/auth/register [post]
@@ -47,12 +47,12 @@ func (h *Handler) Register(c *gin.Context) {
 		response.Fail(c, http.StatusBadRequest, "Data tidak valid: "+err.Error())
 		return
 	}
-	user, err := h.svc.Register(req)
+	res, err := h.svc.Register(req)
 	if err != nil {
 		h.fail(c, err)
 		return
 	}
-	response.Success(c, http.StatusCreated, "Registrasi berhasil", user)
+	response.Success(c, http.StatusCreated, "Registrasi berhasil", res)
 }
 
 // Login godoc

@@ -205,6 +205,9 @@ definitions:
     type: object
   post.StatsResponse:
     properties:
+      belum_selesai:
+        example: 3
+        type: integer
       draft:
         example: 3
         type: integer
@@ -214,9 +217,19 @@ definitions:
       total:
         example: 10
         type: integer
+      total_articles:
+        description: 'Nama kunci 3 kartu statistik: Total Artikel, Total Selesai,
+          Belum Selesai.'
+        example: 10
+        type: integer
+      total_selesai:
+        example: 7
+        type: integer
     type: object
   post.UserSummary:
     properties:
+      belum_selesai:
+        type: integer
       email:
         type: string
       id:
@@ -227,7 +240,11 @@ definitions:
         type: integer
       role:
         type: string
+      total_articles:
+        type: integer
       total_posts:
+        type: integer
+      total_selesai:
         type: integer
       username:
         type: string
@@ -470,7 +487,7 @@ paths:
             - $ref: '#/definitions/response.Body'
             - properties:
                 data:
-                  $ref: '#/definitions/auth.UserResponse'
+                  $ref: '#/definitions/auth.LoginResponse'
               type: object
         "400":
           description: Bad Request

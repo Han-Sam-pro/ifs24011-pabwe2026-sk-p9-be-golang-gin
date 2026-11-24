@@ -397,7 +397,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/auth.UserResponse"
+                                            "$ref": "#/definitions/auth.LoginResponse"
                                         }
                                     }
                                 }
@@ -1247,6 +1247,10 @@ const docTemplate = `{
         "post.StatsResponse": {
             "type": "object",
             "properties": {
+                "belum_selesai": {
+                    "type": "integer",
+                    "example": 3
+                },
                 "draft": {
                     "type": "integer",
                     "example": 3
@@ -1258,12 +1262,24 @@ const docTemplate = `{
                 "total": {
                     "type": "integer",
                     "example": 10
+                },
+                "total_articles": {
+                    "description": "Nama kunci 3 kartu statistik: Total Artikel, Total Selesai, Belum Selesai.",
+                    "type": "integer",
+                    "example": 10
+                },
+                "total_selesai": {
+                    "type": "integer",
+                    "example": 7
                 }
             }
         },
         "post.UserSummary": {
             "type": "object",
             "properties": {
+                "belum_selesai": {
+                    "type": "integer"
+                },
                 "email": {
                     "type": "string"
                 },
@@ -1279,7 +1295,13 @@ const docTemplate = `{
                 "role": {
                     "type": "string"
                 },
+                "total_articles": {
+                    "type": "integer"
+                },
                 "total_posts": {
+                    "type": "integer"
+                },
+                "total_selesai": {
                     "type": "integer"
                 },
                 "username": {
